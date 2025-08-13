@@ -1,0 +1,53 @@
+name: mi_app_ftp
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  cupertino_icons: ^1.0.8
+  intl: ^0.19.0
+  image: ^4.1.7
+  firebase_core: ^2.27.1
+  firebase_auth: ^4.17.9
+  cloud_firestore: ^4.15.9
+  image_picker: ^1.0.7
+  path_provider: ^2.1.2
+  device_info_plus: ^9.1.2
+  shared_preferences: ^2.2.2
+  ftpconnect: ^2.0.7
+  # NUEVO PAQUETE para fuentes profesionales
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  flutter_lints: ^3.0.1
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+
+# En pubspec.yaml
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/splash_logo.png # Asumo que este es el logo del zorro
+  # Elimina o comenta la línea de "branding"
+  # branding: assets/branding_logo.png 

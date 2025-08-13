@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- CAPA 1: Dibuja un color de fondo blanco (#FFFFFF) -->
+    <item android:drawable="#FFFFFF" />
+
+    <!-- CAPA 2: Dibuja tu logo (splash.png) en el centro -->
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash" />
+    </item>
+</layer-list>
