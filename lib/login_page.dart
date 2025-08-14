@@ -17,7 +17,6 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  
   String _errorMessage = '';
   bool _isLoading = false;
 
@@ -69,18 +68,13 @@ class _LoginPageState extends State<LoginPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               const Spacer(flex: 2),
-
-              Image.asset(
-                AppTheme.logoAsset,
-                height: 80, // Un logo más sutil y elegante
-              ),
+              Image.asset(AppTheme.logoAsset, height: 80),
               const SizedBox(height: 60.0),
-
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(
                   labelText: 'Correo Electrónico',
-                  prefixIcon: Icon(Icons.email_outlined),
+                  // Se elimina el prefixIcon
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -89,12 +83,11 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _passwordController,
                 decoration: const InputDecoration(
                   labelText: 'Contraseña',
-                  prefixIcon: Icon(Icons.lock_outline),
+                  // Se elimina el prefixIcon
                 ),
                 obscureText: true,
               ),
               const SizedBox(height: 24.0),
-
               if (_errorMessage.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -113,7 +106,7 @@ class _LoginPageState extends State<LoginPage> {
               const Padding(
                 padding: EdgeInsets.only(bottom: 24.0),
                 child: Text(
-                  'Diseñado por Cloud Capture',
+                  'Diseñado por Foxbyte',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ),

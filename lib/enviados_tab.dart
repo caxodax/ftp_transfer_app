@@ -26,15 +26,20 @@ class EnviadosTabState extends State<EnviadosTab> {
   }
 
   Future<void> _loadSentHistory() async {
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
     final prefs = await SharedPreferences.getInstance();
     final String historyJson = prefs.getString('sent_items_history') ?? '{}';
     final Map<String, dynamic> decodedHistory = jsonDecode(historyJson);
     final sortedKeys = decodedHistory.keys.toList()..sort((a, b) => b.compareTo(a));
-    final Map<String, List<dynamic>> sortedHistory = { for (var k in sortedKeys) k: decodedHistory[k] };
-    
+    final Map<String, List<dynamic>> sortedHistory = {for (var k in sortedKeys) k: decodedHistory[k]};
+
     if (mounted) {
-      setState(() { _sentItemsHistory = sortedHistory; _isLoading = false; });
+      setState(() {
+        _sentItemsHistory = sortedHistory;
+        _isLoading = false;
+      });
     }
   }
 
@@ -43,29 +48,34 @@ class EnviadosTabState extends State<EnviadosTab> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          elevation: 0,
           title: const Text('Detalle del Envío'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Archivo:', style: TextStyle(fontWeight: FontWeight.bold)), Text(fileName),
+              const Text('Archivo:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(fileName),
               const SizedBox(height: 16),
-              const Text('Fecha de Envío:', style: TextStyle(fontWeight: FontWeight.bold)), Text(date),
+              const Text('Fecha de Envío:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(date),
             ],
           ),
-          actions: <Widget>[ TextButton(child: const Text('Cerrar'), onPressed: () => Navigator.of(context).pop()) ],
+          actions: <Widget>[TextButton(child: const Text('Cerrar'), onPressed: () => Navigator.of(context).pop())],
         );
       },
     );
   }
-  
+
   Future<void> _deleteHistoryEntry(String date, {String? fileName}) async {
     final prefs = await SharedPreferences.getInstance();
     final String historyJson = prefs.getString('sent_items_history') ?? '{}';
     final Map<String, dynamic> history = jsonDecode(historyJson);
     if (fileName != null) {
       (history[date] as List?)?.remove(fileName);
-      if ((history[date] as List?)?.isEmpty ?? false) { history.remove(date); }
+      if ((history[date] as List?)?.isEmpty ?? false) {
+        history.remove(date);
+      }
     } else {
       history.remove(date);
     }
@@ -75,28 +85,38 @@ class EnviadosTabState extends State<EnviadosTab> {
 
   void _showDeleteHistoryConfirmation(String date, {String? fileName}) {
     final isDeletingFolder = fileName == null;
-    showDialog(context: context, builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text(isDeletingFolder ? 'Borrar Carpeta Completa' : 'Borrar Registro'),
-        content: Text(isDeletingFolder
-            ? '¿Estás seguro de que quieres borrar el registro de todos los envíos del día $date?'
-            : '¿Estás seguro de que quieres borrar el registro del archivo $fileName?'),
-        actions: <Widget>[
-          TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop()),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary), // Usa el color del tema
-            child: const Text('Borrar'),
-            onPressed: () { Navigator.of(context).pop(); _deleteHistoryEntry(date, fileName: fileName); },
-          ),
-        ],
-      );
-    });
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          elevation: 0,
+          title: Text(isDeletingFolder ? 'Borrar Registro de Carpeta' : 'Borrar Registro'),
+          // LA CORRECCIÓN ESTÁ EN LA LÍNEA DE ABAJO: 'isDeletingler' -> 'isDeletingFolder'
+          content: Text(isDeletingFolder
+              ? '¿Estás seguro de que quieres borrar el registro de todos los envíos del día $date?\n(Esto no afecta a los archivos en el servidor)'
+              : '¿Estás seguro de que quieres borrar el registro del archivo $fileName?\n(Esto no afecta al archivo en el servidor)'),
+          actions: <Widget>[
+            TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop()),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+              child: const Text('Borrar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteHistoryEntry(date, fileName: fileName);
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<File> _getThumbnail(String dateFolder, String fileName) async {
     final cacheDir = await getTemporaryDirectory();
     final thumbnailFile = File('${cacheDir.path}/$fileName');
-    if (await thumbnailFile.exists()) { return thumbnailFile; }
+    if (await thumbnailFile.exists()) {
+      return thumbnailFile;
+    }
     final userData = UserDataService();
     final ftpConnect = FTPConnect(userData.ftpHost!, user: userData.ftpUser!, pass: userData.ftpPassword!, port: userData.ftpPort!, timeout: 30);
     try {
@@ -132,17 +152,18 @@ class EnviadosTabState extends State<EnviadosTab> {
           String date = _sentItemsHistory.keys.elementAt(index);
           List<dynamic> files = _sentItemsHistory[date]!;
           return ExpansionTile(
+            collapsedIconColor: Colors.black,
+            iconColor: Colors.black,
             title: Text('Envíos del $date (${files.length} fotos)'),
-            // AJUSTE DE COLOR DEL ICONO
-            leading: Icon(Icons.folder_open, color: Theme.of(context).colorScheme.secondary),
-            trailing: IconButton(
-              icon: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6)),
+            trailing: TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
               onPressed: () => _showDeleteHistoryConfirmation(date),
-              tooltip: 'Borrar registro de la carpeta',
+              child: const Text('Borrar'),
             ),
+            leading: null,
             children: [
               Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.all(4.0),
                 child: GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -152,22 +173,22 @@ class EnviadosTabState extends State<EnviadosTab> {
                     final fileName = files[gridIndex].toString();
                     return GestureDetector(
                       onLongPress: () => _showSentDetailDialog(date, fileName),
-                      child: Card(
+                      child: Container(
                         clipBehavior: Clip.antiAlias,
-                        child: GridTile(
-                          footer: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 2.0),
-                            color: Colors.black54,
-                            child: Text(fileName, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 8), maxLines: 2, overflow: TextOverflow.ellipsis),
-                          ),
-                          child: FutureBuilder<File>(
-                            future: _getThumbnail(date, fileName),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(strokeWidth: 2.0));
-                              if (snapshot.hasError || !snapshot.hasData) return const Icon(Icons.broken_image, color: Colors.grey, size: 30);
-                              return Image.file(snapshot.data!, fit: BoxFit.cover);
-                            },
-                          ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: FutureBuilder<File>(
+                          future: _getThumbnail(date, fileName),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return Container(color: Colors.grey[200]);
+                            }
+                            if (snapshot.hasError || !snapshot.hasData) {
+                              return Container(color: Colors.grey[300]);
+                            }
+                            return Image.file(snapshot.data!, fit: BoxFit.cover);
+                          },
                         ),
                       ),
                     );

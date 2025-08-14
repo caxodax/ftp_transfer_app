@@ -20,7 +20,7 @@ class PendientesTab extends StatefulWidget {
 
 class PendientesTabState extends State<PendientesTab> {
   List<String> _pendingImagePaths = [];
-  final List<String> _selectedImagePaths = []; 
+  final List<String> _selectedImagePaths = [];
   bool _isUploading = false;
   String _uploadStatus = '';
 
@@ -70,14 +70,13 @@ class PendientesTabState extends State<PendientesTab> {
   Future<void> _takePhoto() async {
     if (_isUploading) return;
     final picker = ImagePicker();
-    // OPTIMIZACIÓN DE VELOCIDAD DE CÁMARA
     final pickedFile = await picker.pickImage(
-      source: ImageSource.camera, 
+      source: ImageSource.camera,
       imageQuality: 85,
       maxWidth: 1920,
       maxHeight: 1080,
     );
-    
+
     if (pickedFile != null) {
       final int photoNumber = await _getNextPhotoNumber();
       final String datePrefix = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -91,11 +90,13 @@ class PendientesTabState extends State<PendientesTab> {
       final Directory directory = Directory(pickedFile.path).parent;
       final String newPath = '${directory.path}/$newFileName';
       final File renamedFile = await File(pickedFile.path).rename(newPath);
-      setState(() { _pendingImagePaths.add(renamedFile.path); });
+      setState(() {
+        _pendingImagePaths.add(renamedFile.path);
+      });
       await _savePendingImages();
     }
   }
-  
+
   void _toggleSelection(String path) {
     if (_isUploading) return;
     setState(() {
@@ -122,49 +123,66 @@ class PendientesTabState extends State<PendientesTab> {
         final thumbnailToDelete = File('${cacheDir.path}/$fileName');
         if (await thumbnailToDelete.exists()) await thumbnailToDelete.delete();
       }
-    } catch (e) { /* Ignorar errores */ }
+    } catch (e) {}
   }
 
   void _showDeleteConfirmation(String path) {
-    showDialog(context: context, builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Confirmar Borrado'), content: const Text('¿Estás seguro de que quieres eliminar esta foto?'),
-        actions: <Widget>[
-          TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop()),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary), // Usa el color del tema
-            child: const Text('Borrar'),
-            onPressed: () { Navigator.of(context).pop(); _deletePaths([path]); },
-          ),
-        ],
-      );
-    });
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar Borrado'),
+          content: const Text('¿Estás seguro de que quieres eliminar esta foto?'),
+          actions: <Widget>[
+            TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop()),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+              child: const Text('Borrar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deletePaths([path]);
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showDeleteSelectedConfirmation() {
-    showDialog(context: context, builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Confirmar Borrado Múltiple'), content: Text('¿Estás seguro de que quieres eliminar las ${_selectedImagePaths.length} fotos seleccionadas?'),
-        actions: <Widget>[
-          TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop()),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary), // Usa el color del tema
-            child: const Text('Borrar'),
-            onPressed: () { Navigator.of(context).pop(); _deletePaths(List.from(_selectedImagePaths)); },
-          ),
-        ],
-      );
-    });
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar Borrado Múltiple'),
+          content: Text('¿Estás seguro de que quieres eliminar las ${_selectedImagePaths.length} fotos seleccionadas?'),
+          actions: <Widget>[
+            TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop()),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+              child: const Text('Borrar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deletePaths(List.from(_selectedImagePaths));
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _uploadSelectedImages() async {
     if (_selectedImagePaths.isEmpty) return;
-    setState(() { _isUploading = true; _uploadStatus = 'Iniciando conexión...'; });
+    setState(() {
+      _isUploading = true;
+      _uploadStatus = 'Iniciando conexión...';
+    });
     final userData = UserDataService();
     final ftpConnect = FTPConnect(userData.ftpHost!, user: userData.ftpUser!, pass: userData.ftpPassword!, port: userData.ftpPort!, timeout: 20);
     try {
       await ftpConnect.connect();
-      await ftpConnect.sendCustomCommand('TYPE I'); 
+      await ftpConnect.sendCustomCommand('TYPE I');
       final String dirName = DateFormat('yyyy-MM-dd').format(DateTime.now());
       await ftpConnect.createFolderIfNotExist(dirName);
       await ftpConnect.changeDirectory(dirName);
@@ -172,7 +190,9 @@ class PendientesTabState extends State<PendientesTab> {
         final path = _selectedImagePaths[i];
         final file = File(path);
         final fileName = path.split('/').last;
-        setState(() { _uploadStatus = 'Subiendo ${i + 1}/${_selectedImagePaths.length}: $fileName'; });
+        setState(() {
+          _uploadStatus = 'Subiendo ${i + 1}/${_selectedImagePaths.length}: $fileName';
+        });
         await ftpConnect.uploadFile(file);
         await _recordSentItem(dirName, fileName);
       }
@@ -183,30 +203,40 @@ class PendientesTabState extends State<PendientesTab> {
       });
       await _savePendingImages();
     } catch (e) {
-      setState(() { _uploadStatus = 'Error durante la subida: ${e.toString()}'; });
+      setState(() {
+        _uploadStatus = 'Error durante la subida: ${e.toString()}';
+      });
     } finally {
       await ftpConnect.disconnect();
-      Future.delayed(const Duration(seconds: 4), () { if (mounted) { setState(() { _isUploading = false; _uploadStatus = ''; }); } });
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+            _uploadStatus = '';
+          });
+        }
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 50, // Reduce la altura si hay botón
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          if (_selectedImagePaths.isNotEmpty && !_isUploading)
-            IconButton(
-              onPressed: _showDeleteSelectedConfirmation,
-              // AJUSTE DE COLOR DEL ICONO
-              icon: Icon(Icons.delete_sweep, color: Theme.of(context).colorScheme.primary),
-              iconSize: 30,
-              tooltip: 'Borrar Selección',
-            ),
-        ],
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(50.0),
+        child: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          // CAMBIO: El botón de borrar ahora es de texto para mayor simpleza
+          actions: [
+            if (_selectedImagePaths.isNotEmpty && !_isUploading)
+              TextButton(
+                onPressed: _showDeleteSelectedConfirmation,
+                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+                child: const Text('Borrar Sel.'),
+              ),
+          ],
+        ),
       ),
       body: Column(
         children: [
@@ -219,8 +249,8 @@ class PendientesTabState extends State<PendientesTab> {
             child: _pendingImagePaths.isEmpty
                 ? const Center(child: Text('Aún no hay fotos pendientes.\n¡Usa la cámara para añadir una!', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, color: Colors.grey)))
                 : GridView.builder(
-                    padding: const EdgeInsets.all(8.0),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3,crossAxisSpacing: 8.0,mainAxisSpacing: 8.0),
+                    padding: const EdgeInsets.all(4.0),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 4.0, mainAxisSpacing: 4.0),
                     itemCount: _pendingImagePaths.length,
                     itemBuilder: (context, index) {
                       final imagePath = _pendingImagePaths[index];
@@ -228,30 +258,26 @@ class PendientesTabState extends State<PendientesTab> {
                       return GestureDetector(
                         onTap: () => _toggleSelection(imagePath),
                         onLongPress: () => _showDeleteConfirmation(imagePath),
-                        child: Card(
-                          clipBehavior: Clip.antiAlias, // Para que la imagen respete los bordes redondeados
-                          elevation: 4.0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                        // CAMBIO: Se usa un Container en lugar de Card para un look más simple
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300, width: 0.5),
+                          ),
+                          clipBehavior: Clip.antiAlias,
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
                               Image.file(File(imagePath), fit: BoxFit.cover),
-                              Positioned(
-                                bottom: 0, left: 0, right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 4.0),
-                                  color: Colors.black54,
-                                  child: Text(imagePath.split('/').last, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                ),
-                              ),
+                              // CAMBIO: Se simplifica el overlay de selección
                               if (isSelected)
                                 Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(12.0),
-                                    border: Border.all(color: Theme.of(context).colorScheme.secondary, width: 3)
+                                  color: Colors.black.withOpacity(0.6),
+                                  child: Center(
+                                    child: Text(
+                                      'SEL',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24),
+                                    ),
                                   ),
-                                  child: const Icon(Icons.check_circle, color: Colors.white, size: 40),
                                 ),
                             ],
                           ),
@@ -260,21 +286,24 @@ class PendientesTabState extends State<PendientesTab> {
                     },
                   ),
           ),
-        ],
-      ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton(onPressed: _takePhoto,tooltip: 'Tomar Foto',heroTag: 'take_photo_btn',child: const Icon(Icons.camera_alt)),
+          // CAMBIO: El botón de enviar ahora es un ElevatedButton estándar
           if (_selectedImagePaths.isNotEmpty && !_isUploading)
             Padding(
-              padding: const EdgeInsets.only(top: 16.0),
-              child: FloatingActionButton.extended(
-                onPressed: _uploadSelectedImages,
-                tooltip: 'Enviar Fotos Seleccionadas', heroTag: 'upload_btn', icon: const Icon(Icons.upload), label: Text('Enviar (${_selectedImagePaths.length})'),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _uploadSelectedImages,
+                  child: Text('Enviar (${_selectedImagePaths.length})'),
+                ),
               ),
             ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _takePhoto,
+        tooltip: 'Tomar Foto',
+        child: const Icon(Icons.camera_alt),
       ),
     );
   }
