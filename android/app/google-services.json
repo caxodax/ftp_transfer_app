@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "867602912295",
-    "project_id": "app-ftp-b7804",
-    "storage_bucket": "app-ftp-b7804.firebasestorage.app"
+    "project_number": "629491266741",
+    "project_id": "ftp-app-28aa8",
+    "storage_bucket": "ftp-app-28aa8.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:867602912295:android:93072ea38fa9c0c3762a02",
+        "mobilesdk_app_id": "1:629491266741:android:679f47ab7a1d815f9bbafc",
         "android_client_info": {
-          "package_name": "com.example.flutter_ftp"
+          "package_name": "app.ftp.transfer"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCW2TCjBFsjm5uPxMiEMOF1EhqcbFzwWnk"
+          "current_key": "AIzaSyCZ2nSulTuh-AYDJmK6MSDz8RcPZe6-ROQ"
         }
       ],
       "services": {
@@ -26,7 +26,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:867602912295:android:86b6c485d37be420762a02",
+        "mobilesdk_app_id": "1:629491266741:android:7b8fde83c1cd93a19bbafc",
         "android_client_info": {
           "package_name": "com.example.mi_app_ftp"
         }
@@ -34,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCW2TCjBFsjm5uPxMiEMOF1EhqcbFzwWnk"
+          "current_key": "AIzaSyCZ2nSulTuh-AYDJmK6MSDz8RcPZe6-ROQ"
         }
       ],
       "services": {

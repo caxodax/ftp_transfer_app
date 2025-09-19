@@ -50,19 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCpcNZFhcpKb1q-48EDRztrG5DPLXRubFs',
-    appId: '1:867602912295:web:3a763945f8d990eb762a02',
-    messagingSenderId: '867602912295',
-    projectId: 'app-ftp-b7804',
-    authDomain: 'app-ftp-b7804.firebaseapp.com',
-    storageBucket: 'app-ftp-b7804.firebasestorage.app',
+    apiKey: 'AIzaSyAQ5zS6XlQ8bhLXULCzoafdgTsAdCgynl0',
+    appId: '1:629491266741:web:85327273dc6078709bbafc',
+    messagingSenderId: '629491266741',
+    projectId: 'ftp-app-28aa8',
+    authDomain: 'ftp-app-28aa8.firebaseapp.com',
+    storageBucket: 'ftp-app-28aa8.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCW2TCjBFsjm5uPxMiEMOF1EhqcbFzwWnk',
-    appId: '1:867602912295:android:86b6c485d37be420762a02',
-    messagingSenderId: '867602912295',
-    projectId: 'app-ftp-b7804',
-    storageBucket: 'app-ftp-b7804.firebasestorage.app',
+    apiKey: 'AIzaSyCZ2nSulTuh-AYDJmK6MSDz8RcPZe6-ROQ',
+    appId: '1:629491266741:android:7b8fde83c1cd93a19bbafc',
+    messagingSenderId: '629491266741',
+    projectId: 'ftp-app-28aa8',
+    storageBucket: 'ftp-app-28aa8.firebasestorage.app',
   );
 }
