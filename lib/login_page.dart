@@ -1,11 +1,10 @@
-// lib/login_page.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 import 'user_data_service.dart';
-import 'home_page.dart';
+// Eliminamos la importación de home_page.dart ya que no se usa directamente aquí
+import 'two_factor_auth_page.dart'; // Importa la nueva página
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,38 +21,65 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> signInAndLoadData() async {
     if (_isLoading) return;
-    setState(() { _isLoading = true; _errorMessage = ''; });
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
     try {
       final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
       final user = userCredential.user;
-      if (user == null) { throw Exception('No se pudo obtener el usuario.'); }
+      if (user == null) {
+        throw Exception('No se pudo obtener el usuario.');
+      }
+
+      // NO cargamos todos los datos de la compañía aquí.
+      // Solo verificamos si el usuario tiene un companyId para continuar.
       final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final userDoc = await userDocRef.get();
-      if (!userDoc.exists) { throw 'Usuario no registrado por el administrador.'; }
+
+      if (!userDoc.exists) {
+        throw 'Usuario no registrado por el administrador.';
+      }
+
       final userData = userDoc.data()!;
       final companyId = userData['companyId'] as String?;
-      if (companyId == null || companyId.isEmpty) { throw 'Usuario no asociado a ninguna compañía.'; }
-      final companyDoc = await FirebaseFirestore.instance.collection('companies').doc(companyId).get();
-      if (!companyDoc.exists) { throw 'La compañía asociada no existe.'; }
-      final companyData = companyDoc.data()!;
-      UserDataService().loadData(
-        companyName: companyData['companyName'], ftpHost: companyData['ftpHost'], ftpUser: companyData['ftpUser'],
-        ftpPassword: companyData['ftpPassword'], ftpPort: companyData['ftpPort'],
-      );
-      if (mounted) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => HomePage()));
+
+      if (companyId == null || companyId.isEmpty) {
+        throw 'Usuario no asociado a ninguna compañía.';
       }
-    } on FirebaseAuthException {
-      setState(() { _errorMessage = 'Email o contraseña incorrectos.'; });
+
+      // Redirigir a la página de verificación de 2FA
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => TwoFactorAuthPage(user: user)),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' || e.code == 'wrong-password') {
+        setState(() {
+          _errorMessage = 'Email o contraseña incorrectos.';
+        });
+      } else {
+        setState(() {
+          _errorMessage = e.message ?? 'Ocurrió un error de autenticación.';
+        });
+      }
     } catch (e) {
-      await FirebaseAuth.instance.signOut(); 
-      UserDataService().clear(); 
-      setState(() { _errorMessage = e.toString(); });
+      // Si hay un error, cerrar sesión y limpiar datos
+      await FirebaseAuth.instance.signOut();
+      UserDataService().clear();
+      setState(() {
+        _errorMessage = e.toString();
+      });
     } finally {
-      if(mounted) { setState(() { _isLoading = false; }); }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -74,7 +100,6 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _emailController,
                 decoration: const InputDecoration(
                   labelText: 'Correo Electrónico',
-                  // Se elimina el prefixIcon
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -83,7 +108,6 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _passwordController,
                 decoration: const InputDecoration(
                   labelText: 'Contraseña',
-                  // Se elimina el prefixIcon
                 ),
                 obscureText: true,
               ),

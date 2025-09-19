@@ -2,14 +2,17 @@
 
 import 'dart:io';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:camera/camera.dart'; // <- NUEVO: para XFile
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ftpconnect/ftpconnect.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
+
 import 'user_data_service.dart';
+import 'camera_page.dart'; // <- NUEVO: tu cámara avanzada con enfoque/flash/zoom/cuadrícula
 
 class PendientesTab extends StatefulWidget {
   const PendientesTab({super.key});
@@ -46,7 +49,9 @@ class PendientesTabState extends State<PendientesTab> {
     final prefs = await SharedPreferences.getInstance();
     final String existingHistoryJson = prefs.getString('sent_items_history') ?? '{}';
     final Map<String, dynamic> history = jsonDecode(existingHistoryJson);
-    if (history[date] == null) { history[date] = []; }
+    if (history[date] == null) {
+      history[date] = [];
+    }
     (history[date] as List).add(fileName);
     final String updatedHistoryJson = jsonEncode(history);
     await prefs.setString('sent_items_history', updatedHistoryJson);
@@ -67,33 +72,61 @@ class PendientesTabState extends State<PendientesTab> {
     return nextNumber;
   }
 
+  /// NUEVO: usa la cámara avanzada en lugar de ImagePicker
   Future<void> _takePhoto() async {
     if (_isUploading) return;
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 85,
-      maxWidth: 1920,
-      maxHeight: 1080,
-    );
 
-    if (pickedFile != null) {
-      final int photoNumber = await _getNextPhotoNumber();
-      final String datePrefix = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final String newFileName = '${datePrefix}_$photoNumber.jpg';
-      final imageBytes = await pickedFile.readAsBytes();
-      final originalImage = img.decodeImage(imageBytes)!;
-      final thumbnail = img.copyResize(originalImage, width: 200);
-      final cacheDir = await getTemporaryDirectory();
-      final thumbnailPath = '${cacheDir.path}/$newFileName';
-      await File(thumbnailPath).writeAsBytes(img.encodeJpg(thumbnail, quality: 85));
-      final Directory directory = Directory(pickedFile.path).parent;
-      final String newPath = '${directory.path}/$newFileName';
-      final File renamedFile = await File(pickedFile.path).rename(newPath);
+    // Abre la cámara pro y espera el resultado
+    final XFile? shot = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CameraPage()),
+    );
+    if (shot == null) return;
+
+    // Convención de nombre: yyyy-MM-dd_N.jpg
+    final int photoNumber = await _getNextPhotoNumber();
+    final String datePrefix = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final String newFileName = '${datePrefix}_$photoNumber.jpg';
+
+    try {
+      // Carpeta destino: Documentos de la app (persistente)
+      final Directory docsDir = await getApplicationDocumentsDirectory();
+      final String newPath = '${docsDir.path}/$newFileName';
+
+      // Copia (o mueve) el archivo desde el temporal de la cámara
+      final File capturedFile = File(shot.path);
+      final File savedFile = await capturedFile.copy(newPath);
+
+      // Thumbnail opcional (200px de ancho) en cache temporal, como hacías
+      try {
+        final bytes = await savedFile.readAsBytes();
+        final originalImage = img.decodeImage(bytes);
+        if (originalImage != null) {
+          final thumbnail = img.copyResize(originalImage, width: 200);
+          final cacheDir = await getTemporaryDirectory();
+          final thumbnailPath = '${cacheDir.path}/$newFileName';
+          await File(thumbnailPath).writeAsBytes(
+            img.encodeJpg(thumbnail, quality: 85),
+          );
+        }
+      } catch (_) {
+        // si falla la miniatura, continuamos igual
+      }
+
+      // Agrega a pendientes y persiste
       setState(() {
-        _pendingImagePaths.add(renamedFile.path);
+        _pendingImagePaths.add(savedFile.path);
       });
       await _savePendingImages();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto añadida a pendientes')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo guardar la foto: $e')),
+      );
     }
   }
 
@@ -123,7 +156,9 @@ class PendientesTabState extends State<PendientesTab> {
         final thumbnailToDelete = File('${cacheDir.path}/$fileName');
         if (await thumbnailToDelete.exists()) await thumbnailToDelete.delete();
       }
-    } catch (e) {}
+    } catch (e) {
+      // silencioso
+    }
   }
 
   void _showDeleteConfirmation(String path) {
@@ -134,9 +169,14 @@ class PendientesTabState extends State<PendientesTab> {
           title: const Text('Confirmar Borrado'),
           content: const Text('¿Estás seguro de que quieres eliminar esta foto?'),
           actions: <Widget>[
-            TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop()),
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
               child: const Text('Borrar'),
               onPressed: () {
                 Navigator.of(context).pop();
@@ -155,11 +195,18 @@ class PendientesTabState extends State<PendientesTab> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirmar Borrado Múltiple'),
-          content: Text('¿Estás seguro de que quieres eliminar las ${_selectedImagePaths.length} fotos seleccionadas?'),
+          content: Text(
+            '¿Estás seguro de que quieres eliminar las ${_selectedImagePaths.length} fotos seleccionadas?',
+          ),
           actions: <Widget>[
-            TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop()),
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
               child: const Text('Borrar'),
               onPressed: () {
                 Navigator.of(context).pop();
@@ -174,30 +221,44 @@ class PendientesTabState extends State<PendientesTab> {
 
   Future<void> _uploadSelectedImages() async {
     if (_selectedImagePaths.isEmpty) return;
+
     setState(() {
       _isUploading = true;
       _uploadStatus = 'Iniciando conexión...';
     });
+
     final userData = UserDataService();
-    final ftpConnect = FTPConnect(userData.ftpHost!, user: userData.ftpUser!, pass: userData.ftpPassword!, port: userData.ftpPort!, timeout: 20);
+    final ftpConnect = FTPConnect(
+      userData.ftpHost!,
+      user: userData.ftpUser!,
+      pass: userData.ftpPassword!,
+      port: userData.ftpPort!,
+      timeout: 20,
+    );
+
     try {
       await ftpConnect.connect();
       await ftpConnect.sendCustomCommand('TYPE I');
+
       final String dirName = DateFormat('yyyy-MM-dd').format(DateTime.now());
       await ftpConnect.createFolderIfNotExist(dirName);
       await ftpConnect.changeDirectory(dirName);
+
       for (int i = 0; i < _selectedImagePaths.length; i++) {
         final path = _selectedImagePaths[i];
         final file = File(path);
         final fileName = path.split('/').last;
+
         setState(() {
           _uploadStatus = 'Subiendo ${i + 1}/${_selectedImagePaths.length}: $fileName';
         });
+
         await ftpConnect.uploadFile(file);
         await _recordSentItem(dirName, fileName);
       }
+
       setState(() {
-        _pendingImagePaths.removeWhere((path) => _selectedImagePaths.contains(path));
+        _pendingImagePaths.removeWhere((p) => _selectedImagePaths.contains(p));
         _selectedImagePaths.clear();
         _uploadStatus = '¡Subida completada con éxito!';
       });
@@ -227,12 +288,13 @@ class PendientesTabState extends State<PendientesTab> {
         child: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          // CAMBIO: El botón de borrar ahora es de texto para mayor simpleza
           actions: [
             if (_selectedImagePaths.isNotEmpty && !_isUploading)
               TextButton(
                 onPressed: _showDeleteSelectedConfirmation,
-                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                ),
                 child: const Text('Borrar Sel.'),
               ),
           ],
@@ -243,14 +305,30 @@ class PendientesTabState extends State<PendientesTab> {
           if (_isUploading)
             Padding(
               padding: const EdgeInsets.all(12.0),
-              child: Column(children: [const CircularProgressIndicator(), const SizedBox(height: 10), Text(_uploadStatus, textAlign: TextAlign.center)]),
+              child: Column(
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 10),
+                  Text(_uploadStatus, textAlign: TextAlign.center),
+                ],
+              ),
             ),
           Expanded(
             child: _pendingImagePaths.isEmpty
-                ? const Center(child: Text('Aún no hay fotos pendientes.\n¡Usa la cámara para añadir una!', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, color: Colors.grey)))
+                ? const Center(
+                    child: Text(
+                      'Aún no hay fotos pendientes.\n¡Usa la cámara para añadir una!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  )
                 : GridView.builder(
                     padding: const EdgeInsets.all(4.0),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 4.0, mainAxisSpacing: 4.0),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 4.0,
+                      mainAxisSpacing: 4.0,
+                    ),
                     itemCount: _pendingImagePaths.length,
                     itemBuilder: (context, index) {
                       final imagePath = _pendingImagePaths[index];
@@ -258,7 +336,6 @@ class PendientesTabState extends State<PendientesTab> {
                       return GestureDetector(
                         onTap: () => _toggleSelection(imagePath),
                         onLongPress: () => _showDeleteConfirmation(imagePath),
-                        // CAMBIO: Se usa un Container en lugar de Card para un look más simple
                         child: Container(
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.grey.shade300, width: 0.5),
@@ -267,15 +344,25 @@ class PendientesTabState extends State<PendientesTab> {
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
-                              Image.file(File(imagePath), fit: BoxFit.cover),
-                              // CAMBIO: Se simplifica el overlay de selección
+                              Image.file(
+                                File(imagePath),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const ColoredBox(
+                                  color: Colors.black12,
+                                  child: Icon(Icons.broken_image_rounded),
+                                ),
+                              ),
                               if (isSelected)
                                 Container(
                                   color: Colors.black.withOpacity(0.6),
-                                  child: Center(
+                                  child: const Center(
                                     child: Text(
                                       'SEL',
-                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 24,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -286,7 +373,6 @@ class PendientesTabState extends State<PendientesTab> {
                     },
                   ),
           ),
-          // CAMBIO: El botón de enviar ahora es un ElevatedButton estándar
           if (_selectedImagePaths.isNotEmpty && !_isUploading)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -301,7 +387,7 @@ class PendientesTabState extends State<PendientesTab> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _takePhoto,
+        onPressed: _takePhoto, // <- ahora abre la cámara avanzada
         tooltip: 'Tomar Foto',
         child: const Icon(Icons.camera_alt),
       ),
