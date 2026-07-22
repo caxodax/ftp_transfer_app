@@ -29,7 +29,7 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
   String _errorMessage = '';
   bool _isLoading = false;
 
-  String? _twoFactorSecret;          // Secreto Base32
+  String? _twoFactorSecret; // Secreto Base32
   bool _twoFactorConfigured = false; // Para decidir si mostrar QR
 
   @override
@@ -50,8 +50,9 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
 
   String _generateBase32Secret([int byteLength = 20]) {
     final rnd = Random.secure();
-    final bytes =
-        Uint8List.fromList(List<int>.generate(byteLength, (_) => rnd.nextInt(256)));
+    final bytes = Uint8List.fromList(
+      List<int>.generate(byteLength, (_) => rnd.nextInt(256)),
+    );
     return base32.encode(bytes).toUpperCase().replaceAll('=', '');
   }
 
@@ -116,8 +117,7 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
     } catch (e) {
       // Captura cualquier error (permisos, red, timeout, etc.)
       setState(() {
-        _errorMessage =
-            'No se pudo cargar la configuración 2FA. ${e.toString()}';
+        _errorMessage = 'No se pudo cargar la configuración 2FA. ${e.toString()}';
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -153,9 +153,9 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
           .collection('users')
           .doc(widget.user.uid)
           .set(
-            {'twoFactorSecret': newSecret, 'twoFactorConfigured': false},
-            SetOptions(merge: true),
-          );
+        {'twoFactorSecret': newSecret, 'twoFactorConfigured': false},
+        SetOptions(merge: true),
+      );
       if (!mounted) return;
       setState(() => _twoFactorSecret = newSecret);
       UserDataService().twoFactorSecret = newSecret;
@@ -225,7 +225,7 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
         await _markConfiguredTrue();
       }
 
-      // Cargar datos de compañía y continuar
+      // Cargar datos de usuario + compañía y continuar
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.user.uid)
@@ -239,6 +239,12 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
         throw 'Usuario no asociado a ninguna compañía.';
       }
 
+      // ✅ NUEVO: carpeta por usuario
+      final carpeta = (userData['carpeta'] as String?)?.trim();
+      if (carpeta == null || carpeta.isEmpty) {
+        throw 'Este usuario no tiene una carpeta asignada (campo "carpeta") en la BD.';
+      }
+
       final companyDoc = await FirebaseFirestore.instance
           .collection('companies')
           .doc(companyId)
@@ -249,11 +255,13 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
       final companyData = companyDoc.data()!;
       UserDataService().loadData(
         companyName: companyData['companyName'],
+        companyId: companyId, // ✅ Guardamos para auditoría de subidas
         ftpHost: companyData['ftpHost'],
         ftpUser: companyData['ftpUser'],
         ftpPassword: companyData['ftpPassword'],
         ftpPort: companyData['ftpPort'],
         userId: widget.user.uid,
+        carpeta: carpeta,
         twoFactorSecret: _twoFactorSecret,
       );
 
@@ -282,10 +290,13 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
   Widget build(BuildContext context) {
     final userDataService = UserDataService();
     final accountName = widget.user.email ?? 'Usuario';
-    final issuer = userDataService.companyName ?? 'Cloud Capture App';
 
-    final showQrSetup =
-        !_twoFactorConfigured && (_twoFactorSecret != null && _twoFactorSecret!.isNotEmpty);
+    // ✅ Recomendación: issuer fijo (no depende de companyName aquí)
+    // Si quieres mantener tu lógica vieja, puedes volver a: userDataService.companyName ?? 'Cloud Capture App'
+    final issuer = 'Cloud Capture App';
+
+    final showQrSetup = !_twoFactorConfigured &&
+        (_twoFactorSecret != null && _twoFactorSecret!.isNotEmpty);
 
     return Scaffold(
       appBar: AppBar(
@@ -356,8 +367,9 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
                       IconButton(
                         tooltip: 'Copiar',
                         onPressed: () async {
-                          await Clipboard.setData(ClipboardData(
-                              text: _normalizeSecret(_twoFactorSecret!)));
+                          await Clipboard.setData(
+                            ClipboardData(text: _normalizeSecret(_twoFactorSecret!)),
+                          );
                           if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Secreto copiado')),
@@ -410,10 +422,9 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
                     : () async {
                         await FirebaseAuth.instance.signOut();
                         if (!mounted) return;
-                        UserDataService().clear();
+                        userDataService.clear();
                         Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                              builder: (context) => LoginPage()),
+                          MaterialPageRoute(builder: (context) => LoginPage()),
                         );
                       },
                 child: const Text('Volver al Login'),
@@ -425,5 +436,3 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
     );
   }
 }
-
-

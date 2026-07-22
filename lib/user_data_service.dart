@@ -10,40 +10,54 @@ class UserDataService {
 
   // --- Datos de la Sesión ---
   String? companyName;
+  String? companyId; // ID del documento en la colección 'companies'
   String? ftpHost;
   String? ftpUser;
   String? ftpPassword;
   int? ftpPort;
-  String? userId; // Agregamos el ID del usuario
+
+  String? userId; // ID del usuario (Firebase Auth UID)
+  String? carpeta; // ✅ Carpeta base del usuario (Firestore: users/{uid}.carpeta)
+
   String? twoFactorSecret; // Clave secreta para 2FA
 
   // Método para cargar los datos después del login
   void loadData({
     required String companyName,
+    required String companyId, // ID del documento en 'companies'
     required String ftpHost,
     required String ftpUser,
     required String ftpPassword,
     required int ftpPort,
-    required String userId, // Ahora requerimos el userId
+    required String userId, // UID
+    required String carpeta, // ✅ requerida para el FTP por usuario
     String? twoFactorSecret, // Permitimos que sea nulo inicialmente
   }) {
     this.companyName = companyName;
+    this.companyId = companyId;
     this.ftpHost = ftpHost;
     this.ftpUser = ftpUser;
     this.ftpPassword = ftpPassword;
     this.ftpPort = ftpPort;
+
     this.userId = userId;
+    this.carpeta = carpeta;
+
     this.twoFactorSecret = twoFactorSecret; // Asignamos la clave secreta
   }
 
   // Método para limpiar los datos al cerrar sesión
   void clear() {
     companyName = null;
+    companyId = null;
     ftpHost = null;
     ftpUser = null;
     ftpPassword = null;
     ftpPort = null;
+
     userId = null;
+    carpeta = null;
+
     twoFactorSecret = null;
   }
 }
